@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<canvas id="canvas" width="860" height="660" style="background-color:#aaaaff"></canvas>
+
+<script>
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+var border = 30;
+
+ctx.translate(border, border); // leave a border for decoration
+ctx.save();
+
+// draw the outline of the board
+var board_width = canvas.width - 2*border,canvas;
+var board_height = canvas.height - 2*border;
+ctx.lineWidth = 6;
+ctx.strokeRect(0, 0, board_width, board_height);
+
+// recording the state of the board... i guess?
+var all_corners = [[0,0], [board_width, 0], [board_width, board_height], [0, board_height]] // need to be listed in order, clockwise
+
+var sides = [];
+for corner in all_corners {
+	
+}
+var working_corner // pick a corner for the starting point of the line
+var feasible_region
+
+
+
+
+
+
+
+</script>
+</body>
+</html>

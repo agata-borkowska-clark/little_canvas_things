@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<canvas id="canvas" width="600" height="600" style="background-color:#aaaaff"></canvas>
+
+<script>
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+ctx.translate(30, 30); // leave a border for decoration
+ctx.save();
+
+// draw the outline of the board
+ctx.lineWidth = 6;
+ctx.strokeRect(0,0,540,540); 
+
+// VARIABLES
+var n; // for size of the board
+var interval; // later, for drawing paths
+var state = []; // for recording state of the board
+
+// for drawing the board
+var xCoords = [0]; // x coordinates of the grid
+var yCoords = [0]; // y coordinates of the grid
+var dist = 0; // working var, used for calculations
+
+var halfLength; // half the side of a square
+var colour = "";
+
+// for recording paths
+var currentPath = []; // path currently being worked on
+var pathBlue = [];
+var pathGreen = [];
+var pathRed = [];
+var pathYellow = [];
+var pathOrange = [];
+var pathPurple = [];
+var pathBrown = [];
+
+// for setting up level; locations of dots
+var blueEnds = [];
+var redEnds = [];
+var greenEnds = [];
+var yellowEnds = [];
+var orangeEnds = [];
+var purpleEnds = [];
+var brownEnds = [];
+
+var endPoints = []; // all of the above put together
+
+// Option screen
+function optionScreen() {
+	ctx.clearRect(0,0,540,540);
+	canvas.removeEventListener("dblclick", optionScreen);
+	canvas.addEventListener("click", chooseLevel);	
+	ctx.font = "30px Arial";
+	ctx.textAlign = "center";
+	ctx.fillStyle = "black";
+	ctx.fillText("Connect the dots, fill the board", 270, 400);
+	ctx.font = "70px Arial";
+	ctx.fillStyle = "#0000ff";
+	ctx.lineWidth = 3;
+	ctx.strokeStyle = "black";
+	ctx.fillText("Choose level", 270, 200); // colour-coded levels
+	ctx.strokeText("Choose level", 270, 200);
+	ctx.font = "50px Arial";
+	ctx.fillText("5x5", 140, 300);
+	ctx.strokeText("5x5", 140, 300);
+	ctx.fillStyle = "#ff0000";
+	ctx.fillText("6x6", 270, 300);
+	ctx.strokeText("6x6", 270, 300);
+	ctx.fillStyle = "#00aa00";
+	ctx.fillText("7x7", 400, 300);
+	ctx.strokeText("7x7", 400, 300);
+}
+
+// Display the level choice on load
+optionScreen();
+
+function chooseLevel(event) {
+    mx = event.clientX - 35;
+    my = event.clientY - 35;
+    if (my > 200 && my < 400) {
+		canvas.removeEventListener("click", chooseLevel); // stop looking for chosen level
+	    if (mx < 180) {
+			n = 5;
+		}
+		if (180 < mx && mx < 360) {
+			n = 6;
+		}
+		if (360< mx){
+			n = 7;
+		}
+
+		// clearing variables
+		xCoords = [0];
+		yCoords = [0];
+		dist = 0;
+		state = [];
+		colour = "";
+		pathBlue = [];
+		pathGreen = [];
+		pathRed = [];
+		pathYellow = [];
+		pathOrange = [];
+		pathPurple = [];
+		pathBrown = [];
+		while (dist < 540) {
+			dist += 540/n;
+			xCoords.push(dist);
+			yCoords.push(dist);
+		}
+		halfLength = 540/(2*n);	
+		chooseBoard(n);
+		recordState();
+		render(n); // render the board
+		canvas.addEventListener("mousedown", getStartingPoint); // wait for the start of path
+	}
+}
+
+// Level options
+function chooseBoard(n) {
+	if (n == 5) {
+		blueEnds = [13,24];
+		redEnds = [10,23];
+		greenEnds = [0,18];
+		orangeEnds = [4,12];
+		yellowEnds = [1,3];
+		purpleEnds = [];
+		brownEnds = [];
+		endPoints = [0,1,3,4,10,12,13,18,23,24];
+	}
+	if (n == 6) {
+		blueEnds = [9,34];
+		redEnds = [5,7];
+		greenEnds = [24,15];
+		yellowEnds = [1,26];
+		orangeEnds = [16,28];
+		purpleEnds = [13,20];
+		brownEnds = [];
+		endPoints = [9,34,5,7,24,15,1,26,16,28,13,20];
+	}
+	if (n == 7) {
+		blueEnds = [10,12];
+		redEnds = [2,45];
+		greenEnds = [16,26];
+		yellowEnds = [24,32];
+		orangeEnds = [9,37];
+		purpleEnds = [23,33];
+		brownEnds = [1,44]
+		endPoints = [10,12,2,45,16,26,24,32,9,37,23,33,1,44];	
+	}
+}
+
+// Recording state of an empty board
+function recordState() {
+	var neighbours; // Record neighbours to later check the validity of paths
+	for (i = 0; i < n*n; i++){
+		neighbours = [];
+		if (i >= n) { // Top row has no neighbours above
+			neighbours.push(i-n);
+		}
+		if (i < n*(n-1)) { // Bottom row has no neighbours below
+			neighbours.push(i+n);
+		}
+		if ((i % n) != 0) { // Left column has no neighbours to the left
+			neighbours.push(i-1);
+		}
+		if ((i % n) != n-1){ // Right column has no neighbours to the right
+			neighbours.push(i+1);
+		}
+		state[i] = {
+			'xField': i % n,
+			'yField': Math.floor(i/n),
+			'top': [xCoords[i % n], yCoords[Math.floor(i/n)], xCoords[(i+1) % n], yCoords[Math.floor(i/n)]],
+			'bottom': [xCoords[i % n], yCoords[Math.floor(i/n) + 1], xCoords[(i+1) % n], yCoords[Math.floor(i/n) +1]],
+			'left': [xCoords[i % n], yCoords[Math.floor(i/n)], xCoords[i % n], yCoords[Math.floor((i+n)/n)]],
+			'right':[xCoords[i % n] + 540/n, yCoords[Math.floor(i/n)], xCoords[i % n] + 540/n, yCoords[Math.floor((i+n)/n)]],
+			'mid': [xCoords[i % n] + halfLength, yCoords[Math.floor(i/n)] + halfLength],
+			'neighbours': neighbours,
+			'colour': ""
+		}
+	}
+
+	// Record the fixed colours of dots
+	for (i in endPoints) {
+		if (blueEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#0000ff";
+		} else if (redEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#ff0000";
+		} else if (greenEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#00aa00";
+		} else if (yellowEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#ffff00";
+		} else if (orangeEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#ff9900";
+		} else if (purpleEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#b700ff";
+		} else if (brownEnds.indexOf(endPoints[i]) > -1) {
+			state[endPoints[i]].colour = "#543b13";
+		}
+	}
+}
+
+// Drawing the level
+function render(n){
+	ctx.clearRect(0,0,540,540);
+	// Drawing board
+	ctx.beginPath();
+	ctx.lineWidth = 3;
+	for (x in xCoords) {
+		ctx.moveTo(xCoords[x], 0);
+		ctx.lineTo(xCoords[x],540);
+		ctx.moveTo(0,xCoords[x]);
+		ctx.lineTo(540,xCoords[x]);
+	}
+	ctx.strokeStyle = "black";
+	ctx.stroke();
+
+	// Drawing dots
+	var r = 540/n*0.5*3/4;
+
+	function dot(square, colour) {
+		var x = state[square].left[0] + halfLength;
+		var y = state[square].left[1] + halfLength;
+		ctx.beginPath();
+		ctx.arc(x,y, r, 0, 2*Math.PI);
+		ctx.fillStyle = colour;
+		ctx.fill();
+	}
+
+	for(i in endPoints) {
+		dot(endPoints[i], state[endPoints[i]].colour);
+	}
+
+	// Draw paths (initially empty)
+	drawPath(pathBlue, "#0000ff");
+	drawPath(pathRed, "#ff0000");
+	drawPath(pathGreen, "#00aa00");
+	drawPath(pathYellow, "#ffff00");
+	drawPath(pathOrange, "#ff9900");
+	drawPath(pathPurple, "#b700ff");
+	drawPath(pathBrown, "#543b13")
+}
+
+// Get mouse coordinates:
+var mx;
+var my;
+var currentSquare;
+var lastSquare;
+var colour;
+
+function detectSquare(event) {
+    mx = event.clientX - 35;
+    my = event.clientY - 35;
+    var xField;
+    var yField;
+    for (x = 0; x < xCoords.length - 1; x++) {
+    	if ((mx > xCoords[x]) && (mx <= xCoords[x+1])) {
+    		xField = x; // finding in which column x is
+    	}
+    }
+    for (y = 0; y < yCoords.length - 1; y++) {
+		if ((my > yCoords[y]) && (my <= yCoords[y+1])) {
+			yField = y; // finding in which row x is
+		}
+    }
+    currentSquare = xField + yField*n; // counting which square it is, as they are numbered row by row, left to right
+}
+
+
+function getStartingPoint(event) {
+	canvas.addEventListener("mouseup", stopDrawing);
+	canvas.addEventListener("mouseleave", stopDrawing);
+	canvas.addEventListener("mousemove", detectSquare);
+	colour = "";
+	// Detect which dot the path starts from
+    if (endPoints.indexOf(currentSquare) > -1) {
+    	currentPath = [currentSquare];
+    	if(blueEnds.indexOf(currentSquare) > -1 ) {
+    		colour = "#0000ff";
+	    	if (pathBlue.length > 1) {
+	    		for (i = 1; i < pathBlue.length - 1; i++) {
+	    			state[pathBlue[i]].colour = "";
+	    		}
+	    	}
+    		pathBlue = [currentSquare];	
+    	}
+    	if(redEnds.indexOf(currentSquare) > -1 ) {
+    		colour = "#ff0000";
+	    	if (pathRed.length > 1) {
+	    		for (i = 1; i < pathRed.length - 1; i++) {
+	    			state[pathRed[i]].colour = "";
+	    		}
+	    	}	
+    		pathRed = [currentSquare];
+    	} 
+    	if(greenEnds.indexOf(currentSquare) > -1 ){
+    		colour = "#00aa00";
+	    	if (pathGreen.length > 1) {
+	    		for (i = 1; i < pathGreen.length - 1; i++) {
+	    			state[pathGreen[i]].colour = "";
+	    		}
+	    	}	
+    		pathGreen = [currentSquare];
+    	} 
+    	if(yellowEnds.indexOf(currentSquare) > -1 ) {
+    		colour = "#ffff00";
+	    	if (pathYellow.length > 1) {
+	    		for (i = 1; i < pathYellow.length - 1; i++) {
+	    			state[pathYellow[i]].colour = "";
+	    		}
+	    	}	
+	    	pathYellow = [currentSquare];
+    	} 
+    	if(orangeEnds.indexOf(currentSquare) > -1 ) {
+    		colour = "#ff9900";
+	    	if (pathOrange.length > 1) {
+	    		for (i = 1; i < pathOrange.length - 1; i++) {
+	    			state[pathOrange[i]].colour = "";
+	    		}
+	    	}	
+    		pathOrange = [currentSquare];
+    	} 
+    	if(purpleEnds.indexOf(currentSquare) > -1 ) {
+    		colour = "#b700ff";
+	    	if (pathPurple.length > 1) {
+	    		for (i = 1; i < pathPurple.length - 1; i++) {
+	    			state[pathPurple[i]].colour = "";
+	    		}
+	    	}	
+    		pathPurple = [currentSquare];
+    	} 
+    	if(brownEnds.indexOf(currentSquare) > -1) {
+    		colour = "#543b13";
+    		if (pathBrown.length > 1) {
+    			for (i = 1; i < pathBrown.length - 1; i++) {
+    				state[pathBrown[i]].colour = "";
+    			}
+    		}
+    		pathBrown = [currentSquare];
+    	}
+	    if (colour != "") {
+	    	render(n);
+	    	drawPath(currentPath, colour);
+	    	interval = setInterval(drag, 20, colour); // as long as the mouse is down, keep drawing the path
+	    }
+	}
+}
+
+function drag(colour) {
+	// check if we moved to a new square
+	lastSquare = currentPath[currentPath.length - 1];
+	if ((currentSquare != lastSquare) &&
+		(state[lastSquare].neighbours.indexOf(currentSquare) > -1)) {
+		if ((currentPath.indexOf(currentSquare) == -1) &&
+			((state[currentSquare].colour == "") || (state[currentSquare].colour == colour))) { // check that the square is empty or a dot
+			currentPath.push(currentSquare);
+			currentSquare = lastSquare;
+		} else if (currentPath.indexOf(currentSquare) > -1) {
+			currentPath = currentPath.slice(0, currentPath.indexOf(currentSquare) + 1); // if the path looped, delete the loop
+			currentSquare = lastSquare;
+			render(n);
+		}
+		drawPath(currentPath, colour);
+	}
+}
+
+// Draw path
+function drawPath(path, colour) {
+	// Check the path is valid
+	if ( path.length > 1 ) {
+		var sideMid = [];
+		var sideMid2 = [];
+		for (i = 0; i < path.length; i++) { // the path in each square will be drawn separately
+			if (i > 0) {
+				switch (path[i] - path[i-1]) { // Finding which side of the square the path starts from
+					case 1:
+						sideMid = [state[path[i]].left[0], state[path[i]].left[1] + halfLength];
+						break;
+					case -1:
+						sideMid = [state[path[i]].right[0], state[path[i]].right[1] + halfLength];
+						break;
+					case n:
+						sideMid = [state[path[i]].top[0] + halfLength, state[path[i]].top[1]];
+						break;
+					case -n:
+						sideMid = [state[path[i]].bottom[0] + halfLength, state[path[i]].bottom[1]];
+						break;
+					default:
+						break;
+				};
+			}
+			switch (path[i] - path[i+1]) { // Finding which side of the square the path ends at
+				case 1:
+					sideMid2 = [state[path[i]].left[0], state[path[i]].left[1] + halfLength];
+					break;
+				case -1:
+					sideMid2 = [state[path[i]].right[0], state[path[i]].right[1] + halfLength];
+					break;
+				case n:
+					sideMid2 = [state[path[i]].top[0] + halfLength, state[path[i]].top[1]];
+					break;
+				case -n:
+					sideMid2 = [state[path[i]].bottom[0] + halfLength, state[path[i]].bottom[1]];
+					break;
+				default:
+					break;
+			};
+			ctx.beginPath();
+			if (sideMid != []) {
+				ctx.moveTo(sideMid[0], sideMid[1]);
+			} else {
+				ctx.moveTo(state[path[i]].mid[0], state[path[i]].mid[1]);
+			}
+			ctx.lineWidth = halfLength;
+			ctx.lineTo(state[path[i]].mid[0], state[path[i]].mid[1]);
+			ctx.lineTo(sideMid2[0], sideMid2[1]);
+			ctx.strokeStyle = colour;
+			ctx.stroke();
+		}
+
+	}
+}
+
+// On mouse up, stop drawing
+function stopDrawing(event) {
+	clearInterval(interval); // stop drawing
+
+	// If the path starts and ends at a dot of the same colour, save as the path of this colour
+	if ((blueEnds.indexOf(currentPath[0]) > -1) &&
+		(blueEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathBlue = currentPath;
+		for (i in currentPath) { // Record the colour of each square in the path
+			state[currentPath[i]].colour = "#0000ff";
+		}
+	} 
+	if ((redEnds.indexOf(currentPath[0]) > -1) &&
+		(redEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathRed = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#ff0000";
+		}
+	} 
+	if ((greenEnds.indexOf(currentPath[0]) > -1) &&
+		(greenEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathGreen = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#00aa00";
+		}
+	}
+	if ((yellowEnds.indexOf(currentPath[0]) > -1) &&
+		(yellowEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathYellow = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#ffff00";
+		}
+	}
+	if ((orangeEnds.indexOf(currentPath[0]) > -1) &&
+		(orangeEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathOrange = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#ff9900";
+		}
+	}
+	if ((purpleEnds.indexOf(currentPath[0]) > -1) &&
+		(purpleEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathPurple = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#b700ff";
+		}
+	}
+	if ((brownEnds.indexOf(currentPath[0]) > -1) &&
+		(brownEnds.indexOf(currentPath[currentPath.length - 1]) > -1)) {
+		pathBrown = currentPath;
+		for (i in currentPath) {
+			state[currentPath[i]].colour = "#543b13";
+		}
+	}
+
+	// clear current path for future use
+	currentPath = [];
+
+	// draw the board, now with the completed path
+	render(n);
+
+	// Check if the level is finished
+	var boardFull = true;
+	for (i in state) {
+		if (state[i].colour == "") {
+			boardFull = false;
+		}
+	}
+
+	// Display message to choose another level
+	if (boardFull) {
+		state = [];
+		canvas.removeEventListener("mouseup", stopDrawing);
+		canvas.removeEventListener("mouseleave", stopDrawing);
+		canvas.removeEventListener("mousemove", detectSquare);
+		canvas.removeEventListener("mousedown", getStartingPoint);
+		canvas.removeEventListener("click", chooseLevel);
+		ctx.clearRect(0,0,540,540);
+		ctx.font = "80px Arial";
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = "black";
+		ctx.fillStyle = "#0000ff";
+		ctx.textAlign = "center";
+		ctx.strokeText("SUCCESS",270, 200);
+		ctx.fillText("SUCCESS", 270, 200);
+		ctx.fillStyle = "black";
+		ctx.font = "30px Arial";
+		ctx.fillText("Double-click to select another level", 270, 300);
+		canvas.addEventListener("dblclick", optionScreen);
+	}
+}
+
+</script>
+</body>
+</html>
