@@ -1,10 +1,18 @@
 <!DOCTYPE html>
+
 <html>
 <body>
 
 <canvas id="canvas" width="860" height="660" style="background-color:#aaaaff"></canvas>
 
 <script>
+/****************************************************************************
+ * Copyright (C) 2016 Agata Borkowska <borkowska.agata37@gmail.com>         *
+ *                                                                          *
+ * zen_doodle.html can not be copied and/or distributed without the express *
+ * permission of Agata Borkowska                                            *
+ ****************************************************************************/
+
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
 
@@ -14,45 +22,88 @@ ctx.translate(border, border); // leave a border for decoration
 ctx.save();
 
 // draw the outline of the board
-var board_width = canvas.width - 2*border,canvas;
-var board_height = canvas.height - 2*border;
+var boardWidth = canvas.width - 2*border,canvas;
+var boardHeight = canvas.height - 2*border;
 ctx.lineWidth = 6;
-ctx.strokeRect(0, 0, board_width, board_height);
+ctx.strokeRect(0, 0, boardWidth, boardHeight);
 
 // recording the state of the board... i guess?
-var all_corners = [[0,0], [board_width, 0], [board_width, board_height], [0, board_height]] // need to be listed in order, clockwise
-var all_shapes = [[[0,0], [board_width, 0], [board_width, board_height], [0, board_height]]] //shape defined by its corners
-var shapes_unprocessed = [[[0,0], [board_width, 0], [board_width, board_height], [0, board_height]]]
+var allCorners = [[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]; // need to be listed in order, clockwise
+var allShapes = [[[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]]; //shape defined by its corners
+var shapesUnprocessed = [[[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]];
 
-var min_side = 150; //length of shortest side when dividing up the board
-var working_corner // pick a corner for the starting point of the line
+var minSide = 150; //length of shortest side when dividing up the board
+var workingCorner; // pick a corner for the starting point of the line
 
 
 // idea: concatenate all feasible regions, going around a shape clockwise from top left, pick point by rand(0,1)
 
 // distance between points
-function distance(a,b) {
-	return(Math.sqrt(Math.pow((a[0]-b[0]),2) + Math.pow((a[1]-b[1]),2)))
+function distance(a, b) {
+	return(Math.sqrt(Math.pow((a[0]-b[0]),2) + Math.pow((a[1]-b[1]),2)));
 }
 
-function feasible_region(shape) {
-	var sides_to_process = [];
+// move along a line from a to b, output point c
+function moveAlong(a, b, ratio = 0.1) {
+	if (a.length != 2 || b.length != 2) {
+		alert("input error");
+	}
+	var x = a[0] + (b[0] - a[0])*ratio;
+	var y = a[1] + (b[1] - a[1])*ratio;
+	var c = [x,y];
+	return c;
+}
+
+function feasibleRegion(shape) {
+	var sidesToProcess = [];
 
 	// pick sides that need to be split
 	for (i = 0; i < shape.length - 1; i++) {
-	  if (parseInt(distance(shape[i],shape[i+1])) > min_side*2) {
-	 	sides_to_process.push([shape[i], shape[i+1]]);	
+	  if (parseInt(distance(shape[i],shape[i+1])) > minSide*2) {
+	 	sidesToProcess.push([shape[i], shape[i+1]]);	
 	  }
 	}
-	if (parseInt(distance(shape[shape.length - 1],shape[0])) > min_side*2) {
-	  sides_to_process.push([shape[shape.length - 1], shape[0]]);	
+	if (parseInt(distance(shape[shape.length - 1],shape[0])) > minSide*2) {
+	  sidesToProcess.push([shape[shape.length - 1], shape[0]]);	
 	}
 
 	// trim them on each end
-	return(sides_to_process);
+	return(sidesToProcess);
 }
 
-feasible_region(all_corners)
+// fill a shape as defined by an array of points (x,y coordinates)
+function shapeFill(shape) {
+
+	// error check
+	if (shape.length != 3) {
+		alert("input error");
+	}
+	
+	// for testing purposes:
+	ctx.beginPath();
+	ctx.lineWidth = 1;
+	ctx.moveTo(shape[0][0], shape[0][1]);
+	ctx.lineTo(shape[1][0], shape[1][1]);
+	ctx.lineTo(shape[2][0], shape[2][1]);
+	ctx.lineTo(shape[0][0], shape[0][1]);
+	ctx.lineTo(shape[1][0], shape[1][1]);
+	ctx.stroke();
+	// end of testing section
+
+	var c = moveAlong(shape[1], shape[2]);
+	if (distance(shape[0],c) > 1) {
+		ctx.beginPath;
+		ctx.moveTo(shape[0][0], shape[0][1]);
+		ctx.lineTo(c[0],c[1]);
+		ctx.stroke();
+		shapeFill([c,shape[2],shape[0]])
+
+	}
+
+}
+
+feasibleRegion(allCorners)
+shapeFill([[10,10],[500,200], [300,400]])
 
 
 
