@@ -21,15 +21,38 @@ ctx.strokeRect(0, 0, board_width, board_height);
 
 // recording the state of the board... i guess?
 var all_corners = [[0,0], [board_width, 0], [board_width, board_height], [0, board_height]] // need to be listed in order, clockwise
+var all_shapes = [[[0,0], [board_width, 0], [board_width, board_height], [0, board_height]]] //shape defined by its corners
+var shapes_unprocessed = [[[0,0], [board_width, 0], [board_width, board_height], [0, board_height]]]
 
-var sides = [];
-for corner in all_corners {
-	
-}
+var min_side = 150; //length of shortest side when dividing up the board
 var working_corner // pick a corner for the starting point of the line
-var feasible_region
 
 
+// idea: concatenate all feasible regions, going around a shape clockwise from top left, pick point by rand(0,1)
+
+// distance between points
+function distance(a,b) {
+	return(Math.sqrt(Math.pow((a[0]-b[0]),2) + Math.pow((a[1]-b[1]),2)))
+}
+
+function feasible_region(shape) {
+	var sides_to_process = [];
+
+	// pick sides that need to be split
+	for (i = 0; i < shape.length - 1; i++) {
+	  if (parseInt(distance(shape[i],shape[i+1])) > min_side*2) {
+	 	sides_to_process.push([shape[i], shape[i+1]]);	
+	  }
+	}
+	if (parseInt(distance(shape[shape.length - 1],shape[0])) > min_side*2) {
+	  sides_to_process.push([shape[shape.length - 1], shape[0]]);	
+	}
+
+	// trim them on each end
+	return(sides_to_process);
+}
+
+feasible_region(all_corners)
 
 
 
