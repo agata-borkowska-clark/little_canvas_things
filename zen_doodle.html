@@ -29,11 +29,7 @@ ctx.strokeRect(0, 0, boardWidth, boardHeight);
 
 // setting up the board
 var minSide = 100; // length of shortest side allowed for a triangle
-// var allCorners = [[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]; // need to be listed in order, clockwise
-// var allShapes = [[[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]]; //shape defined by its corners
-// var shapesUnprocessed = [[[0,0], [boardWidth, 0], [boardWidth, boardHeight], [0, boardHeight]]];
-
-// var workingCorner; // pick a corner for the starting point of the line
+var processedShapes = []; // list triangles that don't need to decrease and are ready to be filled
 
 // useful throughout:
 // distance between points
@@ -44,12 +40,27 @@ function distance(a, b) {
 // move along a line from a to b, output point c
 function moveAlong(a, b, ratio = 0.1) {
 	if (a.length != 2 || b.length != 2) {
-		alert("input error");
-	}
+		console.log("input error on function: moveAlong");
+	} else {
 	var x = a[0] + (b[0] - a[0])*ratio;
 	var y = a[1] + (b[1] - a[1])*ratio;
-	var c = [x,y];
+	var c = [Math.round(x),Math.round(y)];
 	return c;
+	}
+}
+
+// Reorder the corners so that the longest side of the triangle is listed first
+function longestSide(shape) {
+	var distance01 = distance(shape[0], shape[1]);
+	var distance12 = distance(shape[1], shape[2]);
+	var distance20 = distance(shape[2], shape[0]);
+	if (distance01 >= distance12 && distance01 >= distance20) {
+		return shape;
+	} else if (distance12 >= distance01 && distance12 >= distance20) {
+		return [shape[1], shape[2], shape[0]];
+	} else {
+		return [shape[2], shape[0], shape[1]];
+	}
 }
 
 // draw outline of a triangle, given set of points
@@ -60,43 +71,47 @@ function drawTriangle(shape) {
 	ctx.lineTo(shape[1][0], shape[1][1]);
 	ctx.lineTo(shape[2][0], shape[2][1]);
 	ctx.lineTo(shape[0][0], shape[0][1]);
-	ctx.lineTo(shape[1][0], shape[1][1]);
+	ctx.lineTo(shape[1][0], shape[1][1]); // last line overlapping first to create nice corner at the starting point
 	ctx.stroke();
 }
 
-// create the first point
-var x = Math.random() * (boardWidth - 2*minSide) + minSide;
-var y = Math.random() * (boardHeight - 2*minSide) + minSide;
-var initialPoint = [Math.round(x), Math.round(y)];
-var allShapes = [[[0,0], [boardWidth,0], initialPoint],
-				 [[boardWidth,0], [boardWidth,boardHeight], initialPoint],
-				 [[boardWidth,boardHeight], [0,boardHeight], initialPoint],
-				 [[0,boardHeight], [0,0], initialPoint]];
+// Split large triangles into smaller ones
+function triangleSplit(shapeInit) {
+	alert(typeof(longestSide()))
+	var shape = longestSide(shapeInit);
+	var longestSide = distance(shape[0], shape[1]);
+	drawTriangle(shape);
 
+	// check that we haven't generated a triangle smaller than allowed
+	if (longestSide < minSide) {
+		console.log("Error: generated triangle too small");
+	}
 
-// function feasibleRegion(shape) {
-// 	var sidesToProcess = [];
+	// find which side is too long
+	else if (longestSide > 2*minSide) {
+		var newSideLength = Math.round((longestSide - 2*minSide)*Math.random()) + minSide;
+		var ratio = newSideLength/longestSide;
+		console.log(newSideLength);
+		var newPoint = moveAlong(shape[0], shape[1], ratio);
+		console.log(newPoint);
 
-// 	// pick sides that need to be split
-// 	for (i = 0; i < shape.length - 1; i++) {
-// 	  if (parseInt(distance(shape[i],shape[i+1])) > minSide*2) {
-// 	 	sidesToProcess.push([shape[i], shape[i+1]]);	
-// 	  }
-// 	}
-// 	if (parseInt(distance(shape[shape.length - 1],shape[0])) > minSide*2) {
-// 	  sidesToProcess.push([shape[shape.length - 1], shape[0]]);	
-// 	}
+		//test
+		processedShapes.push([shape[0],shape[1],newPoint]);
 
-// 	// trim them on each end
-// 	return(sidesToProcess);
-// }
+		triangleSplit([shape[0],shape[1],newPoint]);
+		// triangleSplit(shape[0],newPoint,shape[2]);
+
+	} else {
+		processedShapes.push(shape);
+	}
+}
 
 // fill a shape as defined by an array of points (x,y coordinates)
 function shapeFill(shape) {
 
 	// error check
 	if (shape.length != 3) {
-		alert("input error");
+		alert("input error - not a triangle");
 	}
 	
 	var c = moveAlong(shape[1], shape[2]);
@@ -111,12 +126,34 @@ function shapeFill(shape) {
 	}
 }
 
-// draw the triangles and fill them
-for (i=0; i < allShapes.length; i++) {
-	drawTriangle(allShapes[i]);
-	shapeFill(allShapes[i]);
-}
+// create the first point
+var x = Math.random() * (boardWidth - minSide) + minSide;
+var y = Math.random() * (boardHeight - minSide) + minSide;
+var initialPoint = [Math.round(x), Math.round(y)];
+console.log(initialPoint[0] + ", " + initialPoint[1])
 
+// list all triangles that are generated
+var firstTriangles = [[[0,0], [boardWidth,0], initialPoint],
+				 [[boardWidth,0], [boardWidth,boardHeight], initialPoint],
+				 [[boardWidth,boardHeight], [0,boardHeight], initialPoint],
+				 [[0,boardHeight], [0,0], initialPoint]];
+
+
+// draw the triangles and fill them
+for (i=0; i < firstTriangles.length; i++) {
+	triangleSplit(firstTriangles[i]);
+}
+triangleSplit(firstTriangles[0]);
+drawTriangle(firstTriangles[1]);
+drawTriangle(firstTriangles[2]);
+drawTriangle(firstTriangles[3]);
+// drawTriangle(processedShapes[0]);
+// shapeFill(firstTriangles[1]);
+// shapeFill(firstTriangles[2]);
+// shapeFill(firstTriangles[3]);
+// shapeFill(processedShapes[0]);
+
+console.log(processedShapes.length);
 
 </script>
 </body>
