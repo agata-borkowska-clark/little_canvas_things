@@ -15,6 +15,10 @@
 
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
+ ctx.mozImageSmoothingEnabled = true;
+ ctx.webkitImageSmoothingEnabled = true;
+ ctx.msImageSmoothingEnabled = true;
+ ctx.imageSmoothingEnabled = true;
 
 var border = 30;
 
@@ -28,7 +32,8 @@ ctx.lineWidth = 6;
 ctx.strokeRect(0, 0, boardWidth, boardHeight);
 
 // setting up the board
-var minSide = 100; // length of shortest side allowed for a triangle
+var minSide = 200; // length of shortest side allowed for a triangle
+var shapesToProcess = [];
 var processedShapes = []; // list triangles that don't need to decrease and are ready to be filled
 
 // useful throughout:
@@ -75,11 +80,25 @@ function drawTriangle(shape) {
 	ctx.stroke();
 }
 
+// TEST function
+function colourShape(shape) {
+	ctx.beginPath();
+	ctx.lineWidth = 1;
+	ctx.moveTo(shape[0][0], shape[0][1]);
+	ctx.lineTo(shape[1][0], shape[1][1]);
+	ctx.lineTo(shape[2][0], shape[2][1]);
+	ctx.lineTo(shape[0][0], shape[0][1]);
+	ctx.lineTo(shape[1][0], shape[1][1]); // last line overlapping first to create nice corner at the starting point
+	ctx.stroke();
+}
+
+
+
 // Split large triangles into smaller ones
 function triangleSplit(shapeInit) {
 	var shape = findLongestSide(shapeInit);
 	var longestSide = distance(shape[0], shape[1]);
-	drawTriangle(shape);
+	drawTriangle(shapeInit);
 
 	// check that we haven't generated a triangle smaller than allowed
 	if (longestSide < minSide) {
@@ -87,23 +106,58 @@ function triangleSplit(shapeInit) {
 	}
 
 	// find which side is too long
-	else if (longestSide > 2*minSide) {
+	while (longestSide > 2*minSide) {
+
 		var newSideLength = Math.round((longestSide - 2*minSide)*Math.random()) + minSide;
 		var ratio = newSideLength/longestSide;
 		console.log(newSideLength);
 		var newPoint = moveAlong(shape[0], shape[1], ratio);
 		console.log(newPoint);
+		shapesToProcess.push([shape[2], newPoint, shape[1]]);
+		shape = [shape[2], shape[0], newPoint];
+		var longestSide = distance(shape[0], shape[1]);
+		drawTriangle(shape);
 
 		//test
-		processedShapes.push([shape[0],shape[1],newPoint]);
-		processedShapes.push([shape[0], newPoint, shape[2]])
-		drawTriangle([shape[0],shape[1],newPoint]);
+		// processedShapes.push([shape[0],shape[1],newPoint]);
+		// processedShapes.push([shape[0], newPoint, shape[2]])
+		// drawTriangle([shape[0],shape[1],newPoint]);
 		// drawTriangle(shape[0],newPoint,shape[2]);
 
-	} else {
-		processedShapes.push(shape);
-	}
+	} 
+	processedShapes.push(shape);
+
+
 }
+
+// function triangleSplit(shapeInit) {
+// 	var shape = findLongestSide(shapeInit);
+// 	var longestSide = distance(shape[0], shape[1]);
+// 	drawTriangle(shape);
+
+// 	// check that we haven't generated a triangle smaller than allowed
+// 	if (longestSide < minSide) {
+// 		console.log("Error: generated triangle too small");
+// 	}
+
+// 	// find which side is too long
+// 	else if (longestSide > 2*minSide) {
+// 		var newSideLength = Math.round((longestSide - 2*minSide)*Math.random()) + minSide;
+// 		var ratio = newSideLength/longestSide;
+// 		console.log(newSideLength);
+// 		var newPoint = moveAlong(shape[0], shape[1], ratio);
+// 		console.log(newPoint);
+
+// 		//test
+// 		processedShapes.push([shape[0],shape[1],newPoint]);
+// 		processedShapes.push([shape[0], newPoint, shape[2]])
+// 		drawTriangle([shape[0],shape[1],newPoint]);
+// 		// drawTriangle(shape[0],newPoint,shape[2]);
+
+// 	} else {
+// 		processedShapes.push(shape);
+// 	}
+// }
 
 // fill a shape as defined by an array of points (x,y coordinates)
 function shapeFill(shape) {
@@ -139,11 +193,26 @@ var firstTriangles = [[[0,0], [boardWidth,0], initialPoint],
 				 [[0,boardHeight], [0,0], initialPoint]];
 
 
-// draw the triangles and fill them
+// draw the first 4 triangles
 for (i=0; i < firstTriangles.length; i++) {
 	triangleSplit(firstTriangles[i]);
 }
-triangleSplit(firstTriangles[0]);
+
+// This may go badly?
+// while (shapesToProcess.length > 0) {
+	var j = 0;
+	for (i=0; i < shapesToProcess.length; i++) {
+		triangleSplit(shapesToProcess[i]);
+		// shapesToProcess.shift();
+		j++;
+	}
+	for (i=0; i<j; i++) {
+		shapesToProcess.shift();
+		i++;
+	}
+	alert(shapesToProcess.length);
+// }
+
 drawTriangle(firstTriangles[1]);
 drawTriangle(firstTriangles[2]);
 drawTriangle(firstTriangles[3]);
@@ -154,11 +223,11 @@ drawTriangle(firstTriangles[3]);
 // shapeFill(processedShapes[0]);
 
 for (i=0; i < processedShapes.length; i++) {
-	drawTriangle(processedShapes[i]);
+	// drawTriangle(processedShapes[i]);
+	// shapeFill(processedShapes[i]); // KEEP IT COMMENTED OUT - TOO MUCH RECURSION
 }
 
-console.log(processedShapes.length);
-
+console.log(ctx.imageSmothingEnabled)
 </script>
 </body>
 </html>
